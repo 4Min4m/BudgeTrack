@@ -21,42 +21,38 @@ const ReceiptUploader: React.FC = () => {
         }
       );
       const data = await response.json();
-      return data.data.detections[0][0].language; // مثلاً "nl" برای هلندی
+      return data.data.detections[0][0].language;
     } catch (error) {
       console.error('Language detection failed:', error);
-      return 'en'; // در صورت خطا، فرض می‌کنیم انگلیسیه
+      return 'en';
     }
   };
 
   const processReceipt = async (file: File) => {
     try {
       setIsProcessing(true);
-      const worker = await createWorker('eng+nld'); // زبان انگلیسی و هلندی
+      const worker = await createWorker('eng+nld');
 
-      // 1. OCR برای استخراج متن خام
       const { data: { text } } = await worker.recognize(file);
 
-      // 2. تشخیص زبان متن استخراج‌شده
       const detectedLang = await detectLanguage(text);
       let processedText = text;
 
-      // 3. اگر زبان غیرانگلیسی بود (مثلاً هلندی)، ترجمه کن
       if (detectedLang !== 'en') {
-        processedText = await translateText(text); // استفاده از تابع translateText
+        processedText = await translateText(text);
       }
 
-      // 4. متن (انگلیسی یا ترجمه‌شده)
       const lines = processedText.split('\n');
       const totalMatch = lines.find(line => line.toLowerCase().includes('total'))?.match(/\d+\.\d{2}/)?.[0] ||
-                        lines.find(line => line.toLowerCase().includes('totaal'))?.match(/\d+\.\d{2}/)?.[0] || // برای رسیدهای هلندی
-                        lines.slice(-1)[0]?.match(/\d+\.\d{2}/)?.[0]; // آخرین خط به‌عنوان fallback
+                        lines.find(line => line.toLowerCase().includes('totaal'))?.match(/\d+\.\d{2}/)?.[0] ||
+                        lines.slice(-1)[0]?.match(/\d+\.\d{2}/)?.[0];
 
       if (totalMatch) {
         addReceipt({
           id: crypto.randomUUID(),
           date: new Date(),
           total: parseFloat(totalMatch),
-          items: [], // بعداً می‌تونی پارست رو پیشرفته‌تر کنی
+          items: [],
           category: 'other',
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -77,7 +73,7 @@ const ReceiptUploader: React.FC = () => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'image/*': ['.jpeg', '.jpg', '.png'] },
-    maxSize: 5 * 1024 * 1024, // حداکثر 5 مگابایت
+    maxSize: 5 * 1024 * 1024,
     onDrop: async (acceptedFiles, rejectedFiles) => {
       if (rejectedFiles.length > 0) {
         toast.error('File rejected: Invalid format or too large');

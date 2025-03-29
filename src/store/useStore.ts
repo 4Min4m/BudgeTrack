@@ -40,14 +40,14 @@ export const useStore = create<State>((set, get) => ({
 
     const formattedReceipts = receiptsRes.data.map((receipt) => ({
       id: receipt.id,
-      date: new Date(receipt.date),
+      date: new Date(receipt.date), // تبدیل رشته به Date
       total: receipt.total,
-      items: receipt.items || [], // اگر items وجود نداشته باشه، آرایه خالی برگردون
+      items: receipt.items || [],
       category: receipt.category,
       imageUrl: receipt.image_url,
       notes: receipt.notes,
-      createdAt: new Date(receipt.created_at),
-      updatedAt: new Date(receipt.updated_at),
+      createdAt: new Date(receipt.created_at), // تبدیل رشته به Date
+      updatedAt: new Date(receipt.updated_at), // تبدیل رشته به Date
     }));
 
     set({
@@ -65,7 +65,7 @@ export const useStore = create<State>((set, get) => ({
       id: receipt.id,
       date: receipt.date.toISOString(),
       total: receipt.total,
-      items: receipt.items || [], // مطمئن می‌شیم که items همیشه یه آرایه باشه
+      items: receipt.items || [],
       category: receipt.category,
       image_url: receipt.imageUrl,
       notes: receipt.notes,
@@ -87,8 +87,9 @@ export const useStore = create<State>((set, get) => ({
 
     const formattedReceipt = {
       ...data,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      date: new Date(data.date), // تبدیل رشته به Date
+      createdAt: new Date(data.created_at), // تبدیل رشته به Date
+      updatedAt: new Date(data.updated_at), // تبدیل رشته به Date
     };
 
     set((state) => ({
@@ -109,15 +110,24 @@ export const useStore = create<State>((set, get) => ({
       updated_at: receipt.updatedAt.toISOString(),
     };
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('receipts')
       .update(receiptForDb)
-      .eq('id', receipt.id);
+      .eq('id', receipt.id)
+      .select()
+      .single();
 
     if (error) throw error;
 
+    const updatedReceipt = {
+      ...receipt,
+      date: new Date(data.date), // تبدیل رشته به Date
+      createdAt: new Date(data.created_at), // تبدیل رشته به Date
+      updatedAt: new Date(data.updated_at), // تبدیل رشته به Date
+    };
+
     set((state) => ({
-      receipts: state.receipts.map((r) => (r.id === receipt.id ? receipt : r)),
+      receipts: state.receipts.map((r) => (r.id === receipt.id ? updatedReceipt : r)),
     }));
   },
 
