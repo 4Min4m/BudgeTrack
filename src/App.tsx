@@ -18,7 +18,9 @@ function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-        initializeUser(session.user.id);
+        initializeUser(session.user.id).catch((error) => {
+          console.error('Error initializing user:', error);
+        });
       }
     });
 
@@ -28,7 +30,9 @@ function App() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-        initializeUser(session.user.id);
+        initializeUser(session.user.id).catch((error) => {
+          console.error('Error initializing user:', error);
+        });
       }
     });
 

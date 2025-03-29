@@ -11,50 +11,52 @@ const ReceiptUploader: React.FC = () => {
   const addReceipt = useStore((state) => state.addReceipt);
 
   const detectLanguage = async (text: string): Promise<string> => {
-    // فرض می‌کنیم یه API برای تشخیص زبان داری (مثلاً از Google Translate)
-    const response = await fetch(
-      `https://translation.googleapis.com/language/translate/v2/detect?key=${import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: text }),
-      }
-    );
-    const data = await response.json();
-    return data.data.detections[0][0].language; // مثلاً "fa" برای فارسی
+    try {
+      const response = await fetch(
+        `https://translation.googleapis.com/language/translate/v2/detect?key=${import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: text }),
+        }
+      );
+      const data = await response.json();
+      return data.data.detections[0][0].language; // مثلاً "nl" برای هلندی
+    } catch (error) {
+      console.error('Language detection failed:', error);
+      return 'en'; // در صورت خطا، فرض می‌کنیم انگلیسیه
+    }
   };
 
   const processReceipt = async (file: File) => {
     try {
       setIsProcessing(true);
-      const worker = await createWorker();
+      const worker = await createWorker('eng+nld'); // زبان انگلیسی و هلندی
 
-      // 1. OCR اولیه برای استخراج متن خام
-      await worker.loadLanguage('eng+fas+du+spa'); // زبان‌های مورد نظرت رو اضافه کن
-      await worker.initialize('eng+fas+du+spa');
+      // 1. OCR برای استخراج متن خام
       const { data: { text } } = await worker.recognize(file);
 
       // 2. تشخیص زبان متن استخراج‌شده
       const detectedLang = await detectLanguage(text);
       let processedText = text;
 
-      // 3. اگر زبان غیرانگلیسی بود، ترجمه کن
+      // 3. اگر زبان غیرانگلیسی بود (مثلاً هلندی)، ترجمه کن
       if (detectedLang !== 'en') {
         processedText = await translateText(text); // استفاده از تابع translateText
       }
 
-      // 4.متن (انگلیسی یا ترجمه‌شده)
+      // 4. متن (انگلیسی یا ترجمه‌شده)
       const lines = processedText.split('\n');
-      const total = lines
-        .find(line => line.toLowerCase().includes('total'))
-        ?.match(/\d+\.\d{2}/)?.[0];
+      const totalMatch = lines.find(line => line.toLowerCase().includes('total'))?.match(/\d+\.\d{2}/)?.[0] ||
+                        lines.find(line => line.toLowerCase().includes('totaal'))?.match(/\d+\.\d{2}/)?.[0] || // برای رسیدهای هلندی
+                        lines.slice(-1)[0]?.match(/\d+\.\d{2}/)?.[0]; // آخرین خط به‌عنوان fallback
 
-      if (total) {
+      if (totalMatch) {
         addReceipt({
           id: crypto.randomUUID(),
           date: new Date(),
-          total: parseFloat(total),
-          items: [],
+          total: parseFloat(totalMatch),
+          items: [], // بعداً می‌تونی پارست رو پیشرفته‌تر کنی
           category: 'other',
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -75,8 +77,12 @@ const ReceiptUploader: React.FC = () => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'image/*': ['.jpeg', '.jpg', '.png'] },
-    maxSize: 5 * 1024 * 1024,
-    onDrop: async (acceptedFiles) => {
+    maxSize: 5 * 1024 * 1024, // حداکثر 5 مگابایت
+    onDrop: async (acceptedFiles, rejectedFiles) => {
+      if (rejectedFiles.length > 0) {
+        toast.error('File rejected: Invalid format or too large');
+        return;
+      }
       const file = acceptedFiles[0];
       if (file) {
         await processReceipt(file);
@@ -103,7 +109,6 @@ const ReceiptUploader: React.FC = () => {
         </div>
       </div>
 
-      {/* Receipt List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium">Recent Receipts</h3>

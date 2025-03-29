@@ -28,7 +28,6 @@ export const useStore = create<State>((set, get) => ({
   initializeUser: async (userId: string) => {
     set({ userId });
 
-    // Fetch user's data
     const [receiptsRes, budgetsRes, listsRes] = await Promise.all([
       supabase.from('receipts').select('*').eq('user_id', userId),
       supabase.from('budgets').select('*').eq('user_id', userId),
@@ -39,8 +38,20 @@ export const useStore = create<State>((set, get) => ({
     if (budgetsRes.error) throw budgetsRes.error;
     if (listsRes.error) throw listsRes.error;
 
+    const formattedReceipts = receiptsRes.data.map((receipt) => ({
+      id: receipt.id,
+      date: new Date(receipt.date),
+      total: receipt.total,
+      items: receipt.items || [], // اگر items وجود نداشته باشه، آرایه خالی برگردون
+      category: receipt.category,
+      imageUrl: receipt.image_url,
+      notes: receipt.notes,
+      createdAt: new Date(receipt.created_at),
+      updatedAt: new Date(receipt.updated_at),
+    }));
+
     set({
-      receipts: receiptsRes.data,
+      receipts: formattedReceipts,
       budgets: budgetsRes.data,
       shoppingLists: listsRes.data,
     });
@@ -50,23 +61,57 @@ export const useStore = create<State>((set, get) => ({
     const { userId } = get();
     if (!userId) return;
 
+    const receiptForDb = {
+      id: receipt.id,
+      date: receipt.date.toISOString(),
+      total: receipt.total,
+      items: receipt.items || [], // مطمئن می‌شیم که items همیشه یه آرایه باشه
+      category: receipt.category,
+      image_url: receipt.imageUrl,
+      notes: receipt.notes,
+      created_at: receipt.createdAt.toISOString(),
+      updated_at: receipt.updatedAt.toISOString(),
+      user_id: userId,
+    };
+
     const { data, error } = await supabase
       .from('receipts')
-      .insert([{ ...receipt, user_id: userId }])
+      .insert([receiptForDb])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error adding receipt to Supabase:', error);
+      throw error;
+    }
+
+    const formattedReceipt = {
+      ...data,
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+    };
 
     set((state) => ({
-      receipts: [...state.receipts, data],
+      receipts: [...state.receipts, formattedReceipt],
     }));
   },
 
   updateReceipt: async (receipt: Receipt) => {
+    const receiptForDb = {
+      id: receipt.id,
+      date: receipt.date.toISOString(),
+      total: receipt.total,
+      items: receipt.items || [],
+      category: receipt.category,
+      image_url: receipt.imageUrl,
+      notes: receipt.notes,
+      created_at: receipt.createdAt.toISOString(),
+      updated_at: receipt.updatedAt.toISOString(),
+    };
+
     const { error } = await supabase
       .from('receipts')
-      .update(receipt)
+      .update(receiptForDb)
       .eq('id', receipt.id);
 
     if (error) throw error;
@@ -126,7 +171,6 @@ export const useStore = create<State>((set, get) => ({
 
     if (listError) throw listError;
 
-    // Update items
     const { error: itemsError } = await supabase
       .from('shopping_items')
       .upsert(
@@ -158,19 +202,15 @@ export const useStore = create<State>((set, get) => ({
 
     const workbook = XLSX.utils.book_new();
 
-    // Add receipts worksheet
     const receiptsWS = XLSX.utils.json_to_sheet(receipts);
     XLSX.utils.book_append_sheet(workbook, receiptsWS, 'Receipts');
 
-    // Add budgets worksheet
     const budgetsWS = XLSX.utils.json_to_sheet(budgets);
     XLSX.utils.book_append_sheet(workbook, budgetsWS, 'Budgets');
 
-    // Add shopping lists worksheet
     const shoppingListsWS = XLSX.utils.json_to_sheet(shoppingLists);
     XLSX.utils.book_append_sheet(workbook, shoppingListsWS, 'Shopping Lists');
 
-    // Generate and download the file
     XLSX.writeFile(workbook, 'finance-data.xlsx');
   },
 }));
