@@ -4,32 +4,57 @@ import { UploadCloud } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import toast from 'react-hot-toast';
 import { useStore } from '../store/useStore';
+import { translateText } from '../config/translate';
 
 const ReceiptUploader: React.FC = () => {
   const [isProcessing, setIsProcessing] = React.useState(false);
   const addReceipt = useStore((state) => state.addReceipt);
 
+  const detectLanguage = async (text: string): Promise<string> => {
+    // فرض می‌کنیم یه API برای تشخیص زبان داری (مثلاً از Google Translate)
+    const response = await fetch(
+      `https://translation.googleapis.com/language/translate/v2/detect?key=${import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: text }),
+      }
+    );
+    const data = await response.json();
+    return data.data.detections[0][0].language; // مثلاً "fa" برای فارسی
+  };
+
   const processReceipt = async (file: File) => {
     try {
       setIsProcessing(true);
-      const worker = await createWorker('eng');
-      
-      // Process the image
+      const worker = await createWorker();
+
+      // 1. OCR اولیه برای استخراج متن خام
+      await worker.loadLanguage('eng+fas+du+spa'); // زبان‌های مورد نظرت رو اضافه کن
+      await worker.initialize('eng+fas+du+spa');
       const { data: { text } } = await worker.recognize(file);
-      
-      // Basic parsing logic - this should be enhanced with more sophisticated regex patterns
-      const lines = text.split('\n');
+
+      // 2. تشخیص زبان متن استخراج‌شده
+      const detectedLang = await detectLanguage(text);
+      let processedText = text;
+
+      // 3. اگر زبان غیرانگلیسی بود، ترجمه کن
+      if (detectedLang !== 'en') {
+        processedText = await translateText(text); // استفاده از تابع translateText
+      }
+
+      // 4.متن (انگلیسی یا ترجمه‌شده)
+      const lines = processedText.split('\n');
       const total = lines
         .find(line => line.toLowerCase().includes('total'))
-        ?.match(/\d+\.\d{2}/)
-        ?.[0];
+        ?.match(/\d+\.\d{2}/)?.[0];
 
       if (total) {
         addReceipt({
           id: crypto.randomUUID(),
           date: new Date(),
           total: parseFloat(total),
-          items: [], // This would need more sophisticated parsing
+          items: [],
           category: 'other',
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -49,15 +74,14 @@ const ReceiptUploader: React.FC = () => {
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png']
-    },
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png'] },
+    maxSize: 5 * 1024 * 1024,
     onDrop: async (acceptedFiles) => {
       const file = acceptedFiles[0];
       if (file) {
         await processReceipt(file);
       }
-    }
+    },
   });
 
   return (
