@@ -27,13 +27,13 @@ A modern web application to manage your finances by uploading receipts, tracking
 ## 📸 Screenshots
 
 ### Receipt Uploading
-![Receipt Uploading](https://via.placeholder.com/600x400.png?text=Receipt+Uploading)
+![Receipt Uploading](https://ibb.co/HTgXNFRn)
 
 ### Budget Tracking
-![Budget Tracking](https://via.placeholder.com/600x400.png?text=Budget+Tracking)
+![Budget Tracking](https://ibb.co/zTLnJhYw)
 
 ### Shopping Lists
-![Shopping Lists](https://via.placeholder.com/600x400.png?text=Shopping+Lists)
+![Shopping Lists](https://ibb.co/qMgTs1qB)
 
 ## 🚀 Getting Started
 
