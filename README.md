@@ -1,8 +1,8 @@
 # Smart Finance Manager
 
-![Smart Finance Manager Banner](https://via.placeholder.com/1200x400.png?text=Smart+Finance+Manager)
+A modern web application to manage your finances by uploading receipts, tracking budgets, and creating shopping lists. Built with React, TypeScript, Supabase, and Tesseract.js for OCR functionality. [Live Demo](https://budgetracki.netlify.app/)
 
-A modern web application to manage your finances by uploading receipts, tracking budgets, and creating shopping lists. Built with React, TypeScript, Supabase, and Tesseract.js for OCR functionality.
+<img src="main.png" alt="main page" width="100%">
 
 ## ✨ Features
 
